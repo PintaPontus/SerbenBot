@@ -10,7 +10,7 @@ async fn main() {
 }
 
 #[derive(BotCommands, Clone)]
-#[command(rename_rule = "lowercase", description = "These commands are supported:")]
+#[command(rename_rule = "lowercase", description = "Sono supportati questi comandi:")]
 enum SerbenCommand {
     #[command(description = "Mostra il messaggio di aiuto.")]
     Help,
@@ -78,14 +78,14 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
 // TODO: interface docker
 fn serben_start() -> std::io::Result<Output> {
     Command::new("docker")
-        .args([""])
+        .args(["start", "project-ozone-3"])
         .output()
 }
 
 // TODO: interface docker
 fn serben_stop() -> std::io::Result<Output> {
     Command::new("docker")
-        .args([""])
+        .args(["stop", "project-ozone-3"])
         .output()
 }
 
