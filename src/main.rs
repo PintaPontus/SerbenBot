@@ -111,6 +111,6 @@ fn erobren_shutdown(seconds: i32) -> std::io::Result<Output> {
 #[cfg(not(target_os = "windows"))]
 fn erobren_shutdown(seconds: i32) -> std::io::Result<Output> {
     Command::new("shutdown")
-        .args(["-P", format!("+{seconds}")])
+        .args(["-P", format!("+{seconds}").as_str()])
         .output();
 }
