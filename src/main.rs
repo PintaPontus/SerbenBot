@@ -112,5 +112,5 @@ fn erobren_shutdown(seconds: i32) -> std::io::Result<Output> {
 fn erobren_shutdown(seconds: i32) -> std::io::Result<Output> {
     Command::new("shutdown")
         .args(["-P", format!("+{seconds}").as_str()])
-        .output();
+        .output()
 }
