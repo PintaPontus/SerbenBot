@@ -51,34 +51,44 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
         }
         SerbenCommand::Accendi => match serben_start() {
             Ok(output) => {
-                bot.send_message(
-                    msg.chat.id,
-                    format!("Accensione: {}", String::from_utf8(output.stdout).unwrap()),
-                )
-                .await?;
+                bot.parse_mode(ParseMode::MarkdownV2)
+                    .send_message(
+                        msg.chat.id,
+                        format!(
+                            "Accensione:\n```\n{}\n```",
+                            String::from_utf8(output.stdout).unwrap()
+                        ),
+                    )
+                    .await?;
             }
             Err(error) => {
-                bot.send_message(
-                    msg.chat.id,
-                    format!("Impossibile avviare il Serben:\n{error}"),
-                )
-                .await?;
+                bot.parse_mode(ParseMode::MarkdownV2)
+                    .send_message(
+                        msg.chat.id,
+                        format!("Impossibile avviare il Serben:\n```\n{error}\n```"),
+                    )
+                    .await?;
             }
         },
         SerbenCommand::Spegni => match serben_stop() {
             Ok(output) => {
-                bot.send_message(
-                    msg.chat.id,
-                    format!("Spegnimento: {}", String::from_utf8(output.stdout).unwrap()),
-                )
-                .await?;
+                bot.parse_mode(ParseMode::MarkdownV2)
+                    .send_message(
+                        msg.chat.id,
+                        format!(
+                            "Spegnimento:\n```\n{}\n```",
+                            String::from_utf8(output.stdout).unwrap()
+                        ),
+                    )
+                    .await?;
             }
             Err(error) => {
-                bot.send_message(
-                    msg.chat.id,
-                    format!("Impossibile fermare il Serben:\n{error}"),
-                )
-                .await?;
+                bot.parse_mode(ParseMode::MarkdownV2)
+                    .send_message(
+                        msg.chat.id,
+                        format!("Impossibile fermare il Serben:\n```\n{error}\n```"),
+                    )
+                    .await?;
             }
         },
         SerbenCommand::Logs(lines) => {
@@ -109,11 +119,12 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
                             .await?;
                     }
                     Err(error) => {
-                        bot.send_message(
-                            msg.chat.id,
-                            format!("Impossibile recuperare i log:\n{error}"),
-                        )
-                        .await?;
+                        bot.parse_mode(ParseMode::MarkdownV2)
+                            .send_message(
+                                msg.chat.id,
+                                format!("Impossibile recuperare i log:\n```\n{error}\n```"),
+                            )
+                            .await?;
                     }
                 }
             }
@@ -136,11 +147,12 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
                     .await?;
                 }
                 Err(error) => {
-                    bot.send_message(
-                        msg.chat.id,
-                        format!("Impossibile spegnere il server:\n{error}"),
-                    )
-                    .await?;
+                    bot.parse_mode(ParseMode::MarkdownV2)
+                        .send_message(
+                            msg.chat.id,
+                            format!("Impossibile spegnere il server:\n```\n{error}\n```"),
+                        )
+                        .await?;
                 }
             }
         }
