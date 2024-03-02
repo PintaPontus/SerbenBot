@@ -174,7 +174,7 @@ fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
 #[cfg(not(target_os = "windows"))]
 fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
     let args = if minutes > 0 {
-        [format!("-P +{seconds}")]
+        [format!("-P +{minutes}")]
     } else {
         ["-h now".to_string()]
     };
