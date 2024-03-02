@@ -163,20 +163,22 @@ fn serben_logs(lines: i32) -> std::io::Result<Output> {
 
 #[cfg(target_os = "windows")]
 fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
-    let args = if minutes > 0 {
-        [format!("-s -t {} -f", minutes * 60)]
-    } else {
-        ["-s -p -f".to_string()]
-    };
-    Command::new("shutdown").args(args).output()
+    Command::new("shutdown")
+        .args(if minutes > 0 {
+            [format!("-s -t {} -f", minutes * 60)]
+        } else {
+            ["-s -p -f".to_string()]
+        })
+        .output()
 }
 
 #[cfg(not(target_os = "windows"))]
 fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
-    let args = if minutes > 0 {
-        [format!("-P +{minutes}")]
-    } else {
-        ["-h now".to_string()]
-    };
-    Command::new("shutdown").args(args).output()
+    Command::new("shutdown")
+        .args(if minutes > 0 {
+            [format!("-P +{minutes}")]
+        } else {
+            ["-h now".to_string()]
+        })
+        .output()
 }
