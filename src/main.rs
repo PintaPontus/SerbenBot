@@ -37,13 +37,13 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
                 .await?
         }
         SerbenCommand::Ip => {
-            let resp = reqwest::get("https://api.ipify.org?format=json")
-                .await?
-                .json::<HashMap<String, String>>()
-                .await?;
             bot.send_message(
                 msg.chat.id,
-                resp.get("ip")
+                reqwest::get("https://api.ipify.org?format=json")
+                    .await?
+                    .json::<HashMap<String, String>>()
+                    .await?
+                    .get("ip")
                     .unwrap_or(&String::from("Impossibile reperire l'ip")),
             )
             .await?
@@ -80,29 +80,53 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
                 .await?
             }
         },
-        SerbenCommand::Logs(lines) => match serben_logs(lines) {
-            Ok(logs) => {
+        SerbenCommand::Logs(lines) => {
+            if lines < 1 {
                 bot.send_message(
                     msg.chat.id,
-                    format!("Logs:\n{}", String::from_utf8(logs.stdout).unwrap()),
+                    "Inserire un numero valido di linee".to_string(),
                 )
                 .await?
             }
-            Err(error) => {
+            if lines > 30 {
                 bot.send_message(
                     msg.chat.id,
-                    format!("Impossibile recuperare i log:\n{error}"),
+                    "Impossibile inviare più di 30 linee".to_string(),
                 )
                 .await?
             }
-        },
-        SerbenCommand::Shutdown(seconds) => {
-            let sec_word = if seconds > 0 { "secondi" } else { "secondo" };
-            match erobren_shutdown(seconds) {
+            match serben_logs(lines) {
+                Ok(logs) => {
+                    let logs_lines = String::from_utf8(logs.stdout).unwrap();
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("Ultime {} linee di logs:\n```{}```", lines, logs_lines),
+                    )
+                    .await?
+                }
+                Err(error) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("Impossibile recuperare i log:\n{error}"),
+                    )
+                    .await?
+                }
+            }
+        }
+        SerbenCommand::Shutdown(minutes) => {
+            if minutes < 0 {
+                bot.send_message(
+                    msg.chat.id,
+                    "Inserire un numero valido di minuti".to_string(),
+                )
+                .await?
+            }
+            let min_word = if minutes > 0 { "minuti" } else { "minuto" };
+            match erobren_shutdown(minutes) {
                 Ok(_) => {
                     bot.send_message(
                         msg.chat.id,
-                        format!("Spegnimento in {seconds} {sec_word}🛑"),
+                        format!("Spegnimento in {minutes} {min_word}🛑"),
                     )
                     .await?
                 }
@@ -138,15 +162,23 @@ fn serben_logs(lines: i32) -> std::io::Result<Output> {
 }
 
 #[cfg(target_os = "windows")]
-fn erobren_shutdown(seconds: i32) -> std::io::Result<Output> {
+fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
     Command::new("shutdown")
-        .args(["-s", "-t", &seconds.to_string(), "-f"])
+        .args(if minutes > 0 {
+            ["-s", "-t", &(minutes * 60).to_string(), "-f"]
+        } else {
+            ["-s", "-p", "-f"]
+        })
         .output()
 }
 
 #[cfg(not(target_os = "windows"))]
-fn erobren_shutdown(seconds: i32) -> std::io::Result<Output> {
+fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
     Command::new("shutdown")
-        .args(["-P", format!("+{seconds}").as_str()])
+        .args(if minutes > 0 {
+            ["-P", format!("+{seconds}").as_str()]
+        } else {
+            ["-h", "now"]
+        })
         .output()
 }
