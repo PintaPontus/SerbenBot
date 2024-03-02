@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::{Debug, Formatter};
 use std::process::{Command, Output};
-use log::{debug, log};
+
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[tokio::main]
@@ -13,7 +11,10 @@ async fn main() {
 }
 
 #[derive(BotCommands, Clone)]
-#[command(rename_rule = "lowercase", description = "Sono supportati questi comandi:")]
+#[command(
+    rename_rule = "lowercase",
+    description = "Sono supportati questi comandi:"
+)]
 enum SerbenCommand {
     #[command(description = "Mostra il messaggio di aiuto.")]
     Help,
@@ -31,42 +32,89 @@ enum SerbenCommand {
 
 async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()> {
     match cmd {
-        SerbenCommand::Help => bot.send_message(
-            msg.chat.id, SerbenCommand::descriptions().to_string()
-        ).await?,
+        SerbenCommand::Help => {
+            bot.send_message(msg.chat.id, SerbenCommand::descriptions().to_string())
+                .await?
+        }
         SerbenCommand::Ip => {
             let resp = reqwest::get("https://api.ipify.org?format=json")
                 .await?
                 .json::<HashMap<String, String>>()
                 .await?;
-            bot.send_message(msg.chat.id, resp.get("ip").unwrap_or(&format!("Impossibile reperire l'ip:\n{error}"))).await?
-        },
-        SerbenCommand::Accendi => {
-            match serben_start(){
-                Ok(output) => bot.send_message(msg.chat.id, format!("Accensione: {}", String::from_utf8(output.stdout).unwrap())).await?,
-                Err(error) => bot.send_message(msg.chat.id, format!("Impossibile avviare il Serben:\n{error}")).await?
+            bot.send_message(
+                msg.chat.id,
+                resp.get("ip")
+                    .unwrap_or(&String::from("Impossibile reperire l'ip")),
+            )
+            .await?
+        }
+        SerbenCommand::Accendi => match serben_start() {
+            Ok(output) => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!("Accensione: {}", String::from_utf8(output.stdout).unwrap()),
+                )
+                .await?
+            }
+            Err(error) => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!("Impossibile avviare il Serben:\n{error}"),
+                )
+                .await?
             }
         },
-        SerbenCommand::Spegni => {
-            match serben_stop(){
-                Ok(output) => bot.send_message(msg.chat.id, format!("Spegnimento: {}", String::from_utf8(output.stdout).unwrap())).await?,
-                Err(error) => bot.send_message(msg.chat.id, format!("Impossibile fermare il Serben:\n{error}")).await?
+        SerbenCommand::Spegni => match serben_stop() {
+            Ok(output) => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!("Spegnimento: {}", String::from_utf8(output.stdout).unwrap()),
+                )
+                .await?
+            }
+            Err(error) => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!("Impossibile fermare il Serben:\n{error}"),
+                )
+                .await?
             }
         },
-        SerbenCommand::Logs(lines) => {
-            match serben_logs(lines){
-                Ok(logs) => bot.send_message(msg.chat.id, format!("Logs:\n{}", String::from_utf8(logs.stdout).unwrap())).await?,
-                Err(error) => bot.send_message(msg.chat.id, format!("Impossibile recuperare i log:\n{error}")).await?
+        SerbenCommand::Logs(lines) => match serben_logs(lines) {
+            Ok(logs) => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!("Logs:\n{}", String::from_utf8(logs.stdout).unwrap()),
+                )
+                .await?
             }
-
+            Err(error) => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!("Impossibile recuperare i log:\n{error}"),
+                )
+                .await?
+            }
         },
         SerbenCommand::Shutdown(seconds) => {
-            let sec_word = if seconds > 0 {"secondi"} else {"secondo"};
-            match erobren_shutdown(seconds){
-                Ok(_) => bot.send_message(msg.chat.id, format!("Spegnimento in {seconds} {sec_word}🛑")).await?,
-                Err(error) => bot.send_message(msg.chat.id, format!("Impossibile spegnere il server:\n{error}")).await?
+            let sec_word = if seconds > 0 { "secondi" } else { "secondo" };
+            match erobren_shutdown(seconds) {
+                Ok(_) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("Spegnimento in {seconds} {sec_word}🛑"),
+                    )
+                    .await?
+                }
+                Err(error) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("Impossibile spegnere il server:\n{error}"),
+                    )
+                    .await?
+                }
             }
-        },
+        }
     };
     Ok(())
 }
