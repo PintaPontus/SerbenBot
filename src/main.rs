@@ -1,5 +1,8 @@
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::{Debug, Formatter};
 use std::process::{Command, Output};
+use log::{debug, log};
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[tokio::main]
@@ -36,31 +39,24 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
                 .await?
                 .json::<HashMap<String, String>>()
                 .await?;
-            bot.send_message(
-                msg.chat.id, resp.get("ip").unwrap_or(&String::from("Impossibile reperire l'ip"))
-            ).await?
+            bot.send_message(msg.chat.id, resp.get("ip").unwrap_or(&format!("Impossibile reperire l'ip:\n{error}"))).await?
         },
         SerbenCommand::Accendi => {
             match serben_start(){
-                Ok(_) => bot.send_message(msg.chat.id, "Accensione").await?,
-                Err(_) => bot.send_message(msg.chat.id, "Impossibile avviare il Serben").await?
+                Ok(output) => bot.send_message(msg.chat.id, format!("Accensione: {}", String::from_utf8(output.stdout).unwrap())).await?,
+                Err(error) => bot.send_message(msg.chat.id, format!("Impossibile avviare il Serben:\n{error}")).await?
             }
         },
         SerbenCommand::Spegni => {
             match serben_stop(){
-                Ok(_) => bot.send_message(msg.chat.id, "Spegnimento").await?,
-                Err(_) => bot.send_message(msg.chat.id, "Impossibile fermare il Serben").await?
+                Ok(output) => bot.send_message(msg.chat.id, format!("Spegnimento: {}", String::from_utf8(output.stdout).unwrap())).await?,
+                Err(error) => bot.send_message(msg.chat.id, format!("Impossibile fermare il Serben:\n{error}")).await?
             }
         },
         SerbenCommand::Logs(lines) => {
             match serben_logs(lines){
-                Ok(logs) => bot.send_message(
-                    msg.chat.id,
-                    format!("Logs: {logs_text}",
-                        logs_text = logs.concat()
-                    )
-                ).await?,
-                Err(_) => bot.send_message(msg.chat.id, "Impossibile recuperare i log").await?
+                Ok(logs) => bot.send_message(msg.chat.id, format!("Logs:\n{}", String::from_utf8(logs.stdout).unwrap())).await?,
+                Err(error) => bot.send_message(msg.chat.id, format!("Impossibile recuperare i log:\n{error}")).await?
             }
 
         },
@@ -68,37 +64,29 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
             let sec_word = if seconds > 0 {"secondi"} else {"secondo"};
             match erobren_shutdown(seconds){
                 Ok(_) => bot.send_message(msg.chat.id, format!("Spegnimento in {seconds} {sec_word}🛑")).await?,
-                Err(_) => bot.send_message(msg.chat.id, "Impossibile spegnere il server").await?
+                Err(error) => bot.send_message(msg.chat.id, format!("Impossibile spegnere il server:\n{error}")).await?
             }
         },
     };
     Ok(())
 }
 
-// TODO: interface docker
 fn serben_start() -> std::io::Result<Output> {
     Command::new("docker")
         .args(["start", "project-ozone-3"])
         .output()
 }
 
-// TODO: interface docker
 fn serben_stop() -> std::io::Result<Output> {
     Command::new("docker")
         .args(["stop", "project-ozone-3"])
         .output()
 }
 
-// TODO: add log reading
-fn serben_logs(lines: i32) -> std::io::Result<[String; 2]> {
-
-    // Command::new("docker")
-    //     .args([""])
-    //     .output()
-    Ok([
-        String::from("ciao"),
-        lines.to_string()
-    ])
+fn serben_logs(lines: i32) -> std::io::Result<Output> {
+    Command::new("docker")
+        .args(["logs", "-n", &lines.to_string(), "project-ozone-3"])
+        .output()
 }
 
 #[cfg(target_os = "windows")]
