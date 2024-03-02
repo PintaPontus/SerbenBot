@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::process::{Command, Output};
 
+use teloxide::types::ParseMode;
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[tokio::main]
@@ -97,11 +98,15 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
                 match serben_logs(lines) {
                     Ok(logs) => {
                         let logs_lines = String::from_utf8(logs.stdout).unwrap();
-                        bot.send_message(
-                            msg.chat.id,
-                            format!("Ultime {} linee di logs:\n```{}```", lines, logs_lines),
-                        )
-                        .await?;
+                        bot.parse_mode(ParseMode::MarkdownV2)
+                            .send_message(
+                                msg.chat.id,
+                                format!(
+                                    "Ultime {} linee di logs:\n```\n{}\n```",
+                                    lines, logs_lines
+                                ),
+                            )
+                            .await?;
                     }
                     Err(error) => {
                         bot.send_message(
