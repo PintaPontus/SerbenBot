@@ -6,7 +6,7 @@ use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[tokio::main]
 async fn main() {
-    log::info!("Starting command bot...");
+    println!("Starting Erobren bot...");
     let bot = Bot::from_env();
     SerbenCommand::repl(bot, answer).await;
 }
@@ -21,17 +21,20 @@ enum SerbenCommand {
     Help,
     #[command(description = "IP di Erobren.")]
     Ip,
-    #[command(description = "Accende il Serben.")]
-    Accendi,
-    #[command(description = "Spegne il Serben.")]
-    Spegni,
-    #[command(description = "Mostra i log del Serben.")]
-    Logs(i32),
+    #[command(description = "Lista dei Serben.")]
+    Lista,
+    #[command(description = "Accendi il Serben.")]
+    Accendi(String),
+    #[command(description = "Spegni il Serben.")]
+    Spegni(String),
+    #[command(description = "Mostra gli ultimi log del Serben.")]
+    Logs(String),
     #[command(description = "Spegne Erobren.")]
     Shutdown(i32),
 }
 
 async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()> {
+    println!("Received message: {:?}", msg.text().unwrap());
     match cmd {
         SerbenCommand::Help => {
             bot.send_message(msg.chat.id, SerbenCommand::descriptions().to_string())
@@ -49,7 +52,28 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
             )
             .await?;
         }
-        SerbenCommand::Accendi => match serben_start() {
+        SerbenCommand::Lista => match serben_list() {
+            Ok(output) => {
+                bot.parse_mode(ParseMode::MarkdownV2)
+                    .send_message(
+                        msg.chat.id,
+                        format!(
+                            "Lista containers:\n```\n{}\n```",
+                            String::from_utf8(output.stdout).unwrap()
+                        ),
+                    )
+                    .await?;
+            }
+            Err(error) => {
+                bot.parse_mode(ParseMode::MarkdownV2)
+                    .send_message(
+                        msg.chat.id,
+                        format!("Impossibile ottenere la lista:\n```\n{error}\n```"),
+                    )
+                    .await?;
+            }
+        },
+        SerbenCommand::Accendi(serben_name) => match serben_start(serben_name) {
             Ok(output) => {
                 bot.parse_mode(ParseMode::MarkdownV2)
                     .send_message(
@@ -70,7 +94,7 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
                     .await?;
             }
         },
-        SerbenCommand::Spegni => match serben_stop() {
+        SerbenCommand::Spegni(serben_name) => match serben_stop(serben_name) {
             Ok(output) => {
                 bot.parse_mode(ParseMode::MarkdownV2)
                     .send_message(
@@ -91,44 +115,28 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
                     .await?;
             }
         },
-        SerbenCommand::Logs(lines) => {
-            if lines < 1 {
-                bot.send_message(
-                    msg.chat.id,
-                    "Inserire un numero valido di linee".to_string(),
-                )
-                .await?;
-            } else if lines > 30 {
-                bot.send_message(
-                    msg.chat.id,
-                    "Impossibile inviare più di 30 linee".to_string(),
-                )
-                .await?;
-            } else {
-                match serben_logs(lines) {
-                    Ok(logs) => {
-                        let logs_lines = String::from_utf8(logs.stdout).unwrap();
-                        bot.parse_mode(ParseMode::MarkdownV2)
-                            .send_message(
-                                msg.chat.id,
-                                format!(
-                                    "Ultime {} linee di logs:\n```\n{}\n```",
-                                    lines, logs_lines
-                                ),
-                            )
-                            .await?;
-                    }
-                    Err(error) => {
-                        bot.parse_mode(ParseMode::MarkdownV2)
-                            .send_message(
-                                msg.chat.id,
-                                format!("Impossibile recuperare i log:\n```\n{error}\n```"),
-                            )
-                            .await?;
-                    }
-                }
+        SerbenCommand::Logs(serben_name) => match serben_logs(serben_name.clone()) {
+            Ok(logs) => {
+                let logs_lines = String::from_utf8(logs.stdout).unwrap();
+                bot.parse_mode(ParseMode::MarkdownV2)
+                    .send_message(
+                        msg.chat.id,
+                        format!(
+                            "Ultime {} linee di logs:\n```\n{}\n```",
+                            serben_name, logs_lines
+                        ),
+                    )
+                    .await?;
             }
-        }
+            Err(error) => {
+                bot.parse_mode(ParseMode::MarkdownV2)
+                    .send_message(
+                        msg.chat.id,
+                        format!("Impossibile recuperare i log:\n```\n{error}\n```"),
+                    )
+                    .await?;
+            }
+        },
         SerbenCommand::Shutdown(minutes) => {
             if minutes < 0 {
                 bot.send_message(
@@ -160,29 +168,33 @@ async fn answer(bot: Bot, msg: Message, cmd: SerbenCommand) -> ResponseResult<()
     Ok(())
 }
 
-fn serben_start() -> std::io::Result<Output> {
+fn serben_list() -> std::io::Result<Output> {
+    Command::new("docker").args(["ps", "-a"]).output()
+}
+
+fn serben_start(serben_name: String) -> std::io::Result<Output> {
     Command::new("docker")
-        .args(["start", "project-ozone-3"])
+        .args(["start", &*serben_name])
         .output()
 }
 
-fn serben_stop() -> std::io::Result<Output> {
+fn serben_stop(serben_name: String) -> std::io::Result<Output> {
     Command::new("docker")
-        .args(["stop", "project-ozone-3"])
+        .args(["stop", &*serben_name])
         .output()
 }
 
-fn serben_logs(lines: i32) -> std::io::Result<Output> {
+fn serben_logs(serben_name: String) -> std::io::Result<Output> {
     Command::new("docker")
-        .args(["logs", "-n", &lines.to_string(), "project-ozone-3"])
+        .args(["logs", "-n", "50", &*serben_name])
         .output()
 }
 
 #[cfg(target_os = "windows")]
-fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
+fn erobren_shutdown(timer_minutes: i32) -> std::io::Result<Output> {
     Command::new("shutdown")
-        .args(if minutes > 0 {
-            [format!("-s -t {} -f", minutes * 60)]
+        .args(if timer_minutes > 0 {
+            [format!("-s -t {} -f", timer_minutes * 60)]
         } else {
             ["-s -p -f".to_string()]
         })
@@ -190,10 +202,10 @@ fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn erobren_shutdown(minutes: i32) -> std::io::Result<Output> {
+fn erobren_shutdown(timer_minutes: i32) -> std::io::Result<Output> {
     Command::new("shutdown")
-        .args(if minutes > 0 {
-            [format!("-P +{minutes}")]
+        .args(if timer_minutes > 0 {
+            [format!("-P +{timer_minutes}")]
         } else {
             ["-h now".to_string()]
         })
